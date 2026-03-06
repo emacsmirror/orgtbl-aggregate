@@ -6,10 +6,8 @@ Aggregating a table is creating a new table by computing sums,
 averages, and so on, out of material from the first table.
 
 * New
-JSON and CSV input tables can now be inside Org Mode blocks.
-(Previously they could live only in their own separate file.).
-
-See [[#csv-input][CSV input]] and [[#json-input][JSON input]].
+The wizard now offers the basic and expert modes. Use =C-u= to launch in
+expert mode. See [[#guiding-traditional-wizard][Guiding (traditional) wizard]].
 
 * Table of Contents
 :PROPERTIES:
@@ -532,8 +530,16 @@ and follow the instructions.  (There are several other /dynamic blocks/
 that can be built this way: =columnview=, =clocktable=, =propview=, =invoice=,
 =transpose=, and any future block).
 
-=C-c C-x x aggregate= is equivalent to
-=M-x orgtbl-aggregate-insert-dblock-aggregate=.
+There are two modes:
+- basic, =C-c C-x x=, =M-x orgtbl-aggregate-insert-dblock-aggregate=
+- expert,  =C-u C-c C-x x=,  =C-u M-x orgtbl-aggregate-insert-dblock-aggregate=
+
+The basic mode only queries for an input table in the current buffer
+and the output columns. Of course, if the wizard updates an existing
+block with exotic parameters, those parameters will be queried even in
+basic mode.
+
+The expert mode queries every parameter.
 
 The wizard has been enhanced & extended.
 

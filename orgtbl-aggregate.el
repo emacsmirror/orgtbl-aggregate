@@ -2275,13 +2275,16 @@ in the same order.
     (goto-char (point-min))
     (select-window main-window)))
 
-(defun orgtbl-aggregate--wizard-query-table (table)
+(defun orgtbl-aggregate--wizard-query-table (table expert)
   "Query the 4 fields composing a generalized table: file:name:params:slice.
 It may be only 3 fields in case of orgid:params:slice or
 file.csv:(csv):slice.
 If TABLE is not nil, it is decomposed into file:name:params:slice, and each
 of those 4 fields serve as default answer when prompting.
-Alternately, file:name may be orgid, an ID which knows its file location."
+Alternately, file:name may be orgid, an ID which knows its file location.
+When EXPERT is nil, only basic parameters are queried.
+Note that when an expert parameter was set prior to entering the wizard,
+it is queried even when EXPERT is nil."
   (let (file name orgid params slice isorgid)
     (if table
         (let ((struct (orgtbl-aggregate--parse-locator table)))
@@ -2296,10 +2299,11 @@ Alternately, file:name may be orgid, an ID which knows its file location."
      (cond
       (orgid t)
       (name nil)
-      (t
+      (expert
        (orgtbl-aggregate--display-help :isorgid)
        (let ((use-short-answers t))
-         (yes-or-no-p "Is the input pointed to by an Org Mode ID? ")))))
+         (yes-or-no-p "Is the input pointed to by an Org Mode ID? ")))
+      (t nil)))
 
     (if isorgid
         (progn
@@ -2313,15 +2317,16 @@ Alternately, file:name may be orgid, an ID which knows its file location."
                  nil ;; user is free to input anything
                  orgid)))
 
-      (orgtbl-aggregate--display-help :file)
-      (let ((insert-default-directory nil))
-        (setq file
-              (orgtbl-aggregate--nil-if-empty
-               (read-file-name "File (RET for current buffer): "
-                               nil
-                               nil
-                               nil
-                               file))))
+      (when (or expert file)
+        (orgtbl-aggregate--display-help :file)
+        (let ((insert-default-directory nil))
+          (setq file
+                (orgtbl-aggregate--nil-if-empty
+                 (read-file-name "File (RET for current buffer): "
+                                 nil
+                                 nil
+                                 nil
+                                 file)))))
 
       (orgtbl-aggregate--display-help :name)
       (setq name
@@ -2341,25 +2346,27 @@ Alternately, file:name may be orgid, an ID which knows its file location."
       ((string-match-p (rx ".json" eos) file)
        (setq params "(json)"))))
 
-    (orgtbl-aggregate--display-help :params)
-    (setq params
-          (read-string
-           "Babel parameters (optional): "
-           params
-           'orgtbl-aggregate-history-cols))
+    (when (or expert params)
+      (orgtbl-aggregate--display-help :params)
+      (setq params
+            (read-string
+             "Babel parameters (optional): "
+             params
+             'orgtbl-aggregate-history-cols)))
 
-    (orgtbl-aggregate--display-help :slice)
-    (setq slice
-          (read-string
-           "Input slicing (optional): "
-           slice
-           'orgtbl-aggregate-history-cols))
+    (when (or expert slice)
+      (orgtbl-aggregate--display-help :slice)
+      (setq slice
+            (read-string
+             "Input slicing (optional): "
+             slice
+             'orgtbl-aggregate-history-cols)))
 
     (orgtbl-aggregate--assemble-locator file name orgid params slice)))
 
 ;; bazilo]
 
-(defun orgtbl-aggregate--wizard-aggregate-create-update (oldline)
+(defun orgtbl-aggregate--wizard-aggregate-create-update (oldline expert)
   "Update OLDLINE parameters by interactivly querying user.
 OLDLINE is an alist containing parameter-value pairs.
 Example: \\'((:table . \"thetable\") (:cols . \"day vsum(quty)\") …)
@@ -2367,7 +2374,10 @@ OLDLINE is supposed to be extracted from an Org Mode block such as:
 #+begin: aggregate :table \"thetable\" :cols \"day vsum(quty)\" …
 If (point) is not on such a line, OLDLINE is nil.
 The function returns a plist which is an updated version of OLDLINE
-amended by the user."
+amended by the user.
+When EXPERT is nil, only basic parameters are queried.
+Note that when an expert parameter was set prior to entering the wizard,
+it is queried even when EXPERT is nil."
   (let ((minibuffer-local-completion-map
          (define-keymap :parent minibuffer-local-completion-map
            "SPC" nil)) ;; allow inserting spaces
@@ -2377,7 +2387,8 @@ amended by the user."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--alist-get-remove :table oldline)))
+             (orgtbl-aggregate--alist-get-remove :table oldline)
+             expert))
 
       (setq headerlist
             (orgtbl-aggregate--get-header-table table))
@@ -2387,12 +2398,14 @@ amended by the user."
              (lambda (x) (format " ~%s~" x))
              headerlist))
 
-      (orgtbl-aggregate--display-help :precompute header)
-      (setq precompute
-            (read-string
-             "Formulas for additional input columns (optional): "
-             (orgtbl-aggregate--alist-get-remove :precompute oldline)
-             'orgtbl-aggregate-history-cols))
+      (setq precompute (orgtbl-aggregate--alist-get-remove :precompute oldline))
+      (when (or expert precompute)
+        (orgtbl-aggregate--display-help :precompute header)
+        (setq precompute
+              (read-string
+               "Formulas for additional input columns (optional): "
+               precompute
+               'orgtbl-aggregate-history-cols)))
 
       (when (orgtbl-aggregate--nil-if-empty precompute)
         (setq headerlist
@@ -2417,29 +2430,34 @@ amended by the user."
               (orgtbl-aggregate--alist-get-remove :cols oldline)
               'orgtbl-aggregate-history-cols)))
 
-      (orgtbl-aggregate--display-help :cond header)
-      (setq aggcond
-            (read-string
-             "Row filter (optional): "
-             (orgtbl-aggregate--alist-get-remove :cond oldline)
-             'orgtbl-aggregate-history-cols))
+      (setq aggcond (orgtbl-aggregate--alist-get-remove :cond oldline))
+      (when (or expert aggcond)
+        (orgtbl-aggregate--display-help :cond header)
+        (setq aggcond
+              (read-string
+               "Row filter (optional): "
+               aggcond
+               'orgtbl-aggregate-history-cols)))
 
-      (orgtbl-aggregate--display-help :hline)
-      (setq hline
-            (completing-read
-             "hline (optional): "
-             '("0" "1" "2" "3")
-             nil
-             'confirm
-             (orgtbl-aggregate--cell-to-string
-              (orgtbl-aggregate--alist-get-remove :hline oldline))))
+      (setq hline (orgtbl-aggregate--alist-get-remove :hline oldline))
+      (when (or expert hline)
+        (orgtbl-aggregate--display-help :hline)
+        (setq hline
+              (completing-read
+               "hline (optional): "
+               '("0" "1" "2" "3")
+               nil
+               'confirm
+               (orgtbl-aggregate--cell-to-string hline))))
 
-      (orgtbl-aggregate--display-help :post)
-      (setq postprocess
-            (read-string
-             "Post process (optional): "
-             (orgtbl-aggregate--alist-get-remove :post oldline)
-             'orgtbl-aggregate-history-cols))
+      (setq postprocess (orgtbl-aggregate--alist-get-remove :post oldline))
+      (when (or expert postprocess)
+        (orgtbl-aggregate--display-help :post)
+        (setq postprocess
+              (read-string
+               "Post process (optional): "
+               postprocess
+               'orgtbl-aggregate-history-cols)))
       )
 
     (setq params
@@ -2464,11 +2482,14 @@ amended by the user."
 ;; [bazilo synchronize orgtbl-αggregate & orgtbl-joιn
 
 ;;;###autoload
-(defun orgtbl-aggregate-insert-dblock-aggregate ()
-  "Wizard to interactively insert a dynamic aggregated block."
-  (interactive)
+(defun orgtbl-aggregate-insert-dblock-aggregate (&optional expert)
+  "Wizard to interactively insert a dynamic aggregated block.
+When EXPERT is nil, only basic parameters are queried.
+Note that when an expert parameter was set prior to entering the wizard,
+it is queried even when EXPERT is nil."
+  (interactive "P")
   (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
-         (params (orgtbl-aggregate--wizard-aggregate-create-update oldline)))
+         (params (orgtbl-aggregate--wizard-aggregate-create-update oldline expert)))
     (when oldline
       (org-mark-element)
       (delete-region (region-beginning) (1- (region-end))))
@@ -2950,7 +2971,7 @@ Note:
       post))
     (orgtbl-aggregate--table-recalculate content formula)))
 
-(defun orgtbl-aggregate--wizard-transpose-create-update (oldline)
+(defun orgtbl-aggregate--wizard-transpose-create-update (oldline expert)
   "Update OLDLINE parameters by interactivly querying user.
 OLDLINE is an alist containing parameter-value pairs.
 Example: \\'((:table . \"thetable\") (:cols . \"day month\") …)
@@ -2958,7 +2979,10 @@ OLDLINE is supposed to be extracted from an Org Mode block such as:
 #+begin: transpose :table \"thetable\" :cols \"day month\" …
 If (point) is not on such a line, OLDLINE is nil.
 The function returns a plist which is an updated version of OLDLINE
-amended by the user."
+amended by the user.
+When EXPERT is nil, only basic parameters are queried.
+Note that when an expert parameter was set prior to entering the wizard,
+it is queried even when EXPERT is nil."
   (let ((minibuffer-local-completion-map
          (define-keymap :parent minibuffer-local-completion-map
            "SPC" nil)) ;; allow inserting spaces
@@ -2967,7 +2991,8 @@ amended by the user."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--alist-get-remove :table oldline)))
+             (orgtbl-aggregate--alist-get-remove :table oldline)
+             expert))
 
       (setq headerlist
             (orgtbl-aggregate--get-header-table table))
@@ -2986,19 +3011,23 @@ amended by the user."
               (orgtbl-aggregate--alist-get-remove :cols oldline)
               'orgtbl-aggregate-history-cols)))
 
-      (orgtbl-aggregate--display-help :cond header)
-      (setq aggcond
-            (read-string
-             "Row filter (optional): "
-             (orgtbl-aggregate--alist-get-remove :cond oldline)
-             'orgtbl-aggregate-history-cols))
+      (setq aggcond (orgtbl-aggregate--alist-get-remove :cond oldline))
+      (when (or expert aggcond)
+        (orgtbl-aggregate--display-help :cond header)
+        (setq aggcond
+              (read-string
+               "Row filter (optional): "
+               aggcond
+               'orgtbl-aggregate-history-cols)))
 
-      (orgtbl-aggregate--display-help :post)
-      (setq postprocess
-            (read-string
-             "Post process (optional): "
-             (orgtbl-aggregate--alist-get-remove :post oldline)
-             'orgtbl-aggregate-history-cols))
+      (setq postprocess (orgtbl-aggregate--alist-get-remove :post oldline))
+      (when (or expert postprocess)
+        (orgtbl-aggregate--display-help :post)
+        (setq postprocess
+              (read-string
+               "Post process (optional): "
+               postprocess
+               'orgtbl-aggregate-history-cols)))
       )
 
     (setq params
@@ -3017,11 +3046,11 @@ amended by the user."
     params))
 
 ;;;###autoload
-(defun orgtbl-aggregate-insert-dblock-transpose ()
+(defun orgtbl-aggregate-insert-dblock-transpose (&optional expert)
   "Wizard to interactively insert a transpose dynamic block."
-  (interactive)
+  (interactive "P")
   (let* ((oldline (orgtbl-aggregate--parse-header-arguments "transpose"))
-         (params (orgtbl-aggregate--wizard-transpose-create-update oldline)))
+         (params (orgtbl-aggregate--wizard-transpose-create-update oldline expert)))
     (when oldline
       (org-mark-element)
       (delete-region (region-beginning) (1- (region-end))))

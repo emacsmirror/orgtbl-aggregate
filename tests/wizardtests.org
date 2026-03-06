@@ -88,7 +88,7 @@ buffer. When done, the buffer and the original, untouched
 * test1
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init "C-c C-x x aggr <tab> <return>"
+ :init "C-u C-c C-x x aggr <tab> <return>"
  :isid "n"
  :file "unitt <tab> <return>"
  :name "hlin <tab> <return>"
@@ -142,7 +142,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "n"
  :file       "<return>"
  :name       "t a g q <tab> <return>"
@@ -179,7 +179,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "n"
  :file       "<return>"
  :name       "t a g q <tab> <return>"
@@ -206,7 +206,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "n"
  :file       "<return>"
  :name       "t a g q <tab> <return>"
@@ -246,7 +246,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "n"
  :file       "g e o g r <tab> c <tab> <return>"
  :name       "<return>"
@@ -313,7 +313,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "n"
  :file       "g e o g r <tab> j <tab> <return>"
  :name       "<return>"
@@ -371,7 +371,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x a g g <tab> <return>"
+ :init       "C-u C-c C-x x a g g <tab> <return>"
  :isid       "y"
  :orgid      "55ab27a2 <tab> <return>"
  :params     "<return>"
@@ -403,7 +403,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x t r a n <tab> <return>"
+ :init       "C-u C-c C-x x t r a n <tab> <return>"
  :isid       "n"
  :file       "<return>"
  :name       "C-a SPC C-a C-k s u n n y d <tab> <return>"
@@ -428,7 +428,7 @@ buffer. When done, the buffer and the original, untouched
 
 #+begin_src elisp :results none
 (orgtbl-aggregate-wizard-test
- :init       "C-c C-x x tran <tab> <return>"
+ :init       "C-u C-c C-x x tran <tab> <return>"
  :isid       "n"
  :file       "<return>"
  :name       "C-a SPC C-a C-k s u n n y d <tab> <return>"
