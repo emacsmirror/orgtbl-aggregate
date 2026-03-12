@@ -296,7 +296,7 @@ COLNAMES, if not nil, is a list of column names."
   ;; skip lines beginning with # in order to reach the start of table
   (rx-define skip-meta-table (firstchars)
     (seq
-     (0+ (0+ blank) (? firstchars (0+ any)) "\n")
+     (0+ (0+ blank) (? firstchars (0+ nonl)) "\n")
      (0+ blank) "|"))
 
   ;; just to get ride of a few parenthesis
@@ -333,7 +333,7 @@ If FILE is nil, use current buffer."
         (cl-loop
          while
          (re-search-forward
-          (rx tblname (group (*? any)) (* blank) eol)
+          (rx tblname (group (*? nonl)) (* blank) eol)
           nil t)
          collect (match-string-no-properties 1))))))
 
@@ -366,7 +366,7 @@ If FILE is nil, look in the current buffer."
         (if (re-search-forward
              (rx ;; a single regexp :)
               tblname (literal name) (* blank) "\n"
-              (0+ blank) "#+begin" (0+ any) "\n"
+              (0+ blank) "#+begin" (0+ nonl) "\n"
               (group (*? (or any "\n")))
               bol (* space) "#+end")
              nil t)
@@ -526,9 +526,9 @@ as an Org Id and put in the `orgid' field."
         (* space)
         (   group-n 2 (* (notany "[]():")))
         (* space)
-        (? (group-n 3 "(" (* any) ")"))
+        (? (group-n 3 "(" (* nonl) ")"))
         (* space)
-        (? (group-n 4 "[" (* any) "]"))
+        (? (group-n 4 "[" (* nonl) "]"))
         (* space)
         eos)
        locator)
@@ -953,7 +953,7 @@ with new formulas (if any) given in the `formula' directive."
          (and content
 	      (let ((case-fold-search t))
 	        (string-match
-	         (rx bol (* blank) (group "#+tblfm:" (* any)))
+	         (rx bol (* blank) (group "#+tblfm:" (* nonl)))
 	         content))
               (match-string 1 content))))
     (if (stringp formula)
@@ -2120,7 +2120,7 @@ Note:
     (if (and content
 	     (let ((case-fold-search t))
 	       (string-match
-		(rx bos (+ (* blank) "#+" (* any) "\n"))
+		(rx bos (+ (* blank) "#+" (* nonl) "\n"))
 		content)))
 	(insert (match-string 0 content)))
     (orgtbl-aggregate--insert-elisp-table
@@ -2581,7 +2581,7 @@ then proceed to folding, otherwise unfold."
         (rx point "#+aggregate:" (* blank)
             (group (+ (any ":a-z0-9_-")))
             (* blank)
-            (group (* any)))
+            (group (* nonl)))
         nil t))
      collect
      (cons
@@ -2958,7 +2958,7 @@ Note:
     (if (and content
 	     (let ((case-fold-search t))
 	       (string-match
-		(rx bos (+ (* blank) "#+" (* any) "\n"))
+		(rx bos (+ (* blank) "#+" (* nonl) "\n"))
 		content)))
 	(insert (match-string 0 content)))
     (orgtbl-aggregate--insert-elisp-table
