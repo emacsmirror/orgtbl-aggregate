@@ -172,6 +172,23 @@ which saves 4 or 5 byte-codes at each call."
     `(string-match ,regexp ,string ,start t))
   )
 
+(defun orgtbl-aggregate--alist-get-remove (key alist)
+  "A variant of alist-get which removes an entry once read.
+ALIST is a list of pairs (key . value).
+Search ALIST for a KEY. If found, replace the key in (key . value)
+by nil, and return value. If nothing is found, return nil."
+  (let ((x (assq key alist)))
+    (when x
+      (setcar x nil)
+      (cdr x))))
+
+(defun orgtbl-aggregate--plist-get-remove (params prop)
+  "Like `plist-get', but also remove PROP from PARAMS."
+  (let ((v (plist-get params prop)))
+    (if v
+        (setcar (memq prop params) nil))
+    v))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; The function (org-table-to-lisp) have been greatly enhanced
 ;; in Org Mode version 9.4
@@ -898,16 +915,6 @@ with an Org Mode table."
     (let ((*this* table))
       (eval post)))
    (t (user-error ":post %S header could not be understood" post))))
-
-(defun orgtbl-aggregate--alist-get-remove (key alist)
-  "A variant of alist-get which removes an entry once read.
-ALIST is a list of pairs (key . value).
-Search ALIST for a KEY. If found, replace the key in (key . value)
-by nil, and return value. If nothing is found, return nil."
-  (let ((x (assq key alist)))
-    (when x
-      (setcar x nil)
-      (cdr x))))
 
 (defun orgtbl-aggregate--recalculate-fast ()
   "Wrapper arround `org-table-recalculate'.
@@ -2368,8 +2375,8 @@ it is queried even when EXPERT is nil."
 
 (defun orgtbl-aggregate--wizard-aggregate-create-update (oldline expert)
   "Update OLDLINE parameters by interactivly querying user.
-OLDLINE is an alist containing parameter-value pairs.
-Example: \\'((:table . \"thetable\") (:cols . \"day vsum(quty)\") …)
+OLDLINE is a plist containing parameter-value pairs.
+Example: \\'(:table \"thetable\" :cols \"day vsum(quty)\" …)
 OLDLINE is supposed to be extracted from an Org Mode block such as:
 #+begin: aggregate :table \"thetable\" :cols \"day vsum(quty)\" …
 If (point) is not on such a line, OLDLINE is nil.
@@ -2387,7 +2394,7 @@ it is queried even when EXPERT is nil."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--alist-get-remove :table oldline)
+             (orgtbl-aggregate--plist-get-remove :table oldline)
              expert))
 
       (setq headerlist
@@ -2398,7 +2405,7 @@ it is queried even when EXPERT is nil."
              (lambda (x) (format " ~%s~" x))
              headerlist))
 
-      (setq precompute (orgtbl-aggregate--alist-get-remove :precompute oldline))
+      (setq precompute (orgtbl-aggregate--plist-get-remove :precompute oldline))
       (when (or expert precompute)
         (orgtbl-aggregate--display-help :precompute header)
         (setq precompute
@@ -2427,10 +2434,10 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--alist-get-remove :cols oldline)
+              (orgtbl-aggregate--plist-get-remove :cols oldline)
               'orgtbl-aggregate-history-cols)))
 
-      (setq aggcond (orgtbl-aggregate--alist-get-remove :cond oldline))
+      (setq aggcond (orgtbl-aggregate--plist-get-remove :cond oldline))
       (when (or expert aggcond)
         (orgtbl-aggregate--display-help :cond header)
         (setq aggcond
@@ -2439,7 +2446,7 @@ it is queried even when EXPERT is nil."
                aggcond
                'orgtbl-aggregate-history-cols)))
 
-      (setq hline (orgtbl-aggregate--alist-get-remove :hline oldline))
+      (setq hline (orgtbl-aggregate--plist-get-remove :hline oldline))
       (when (or expert hline)
         (orgtbl-aggregate--display-help :hline)
         (setq hline
@@ -2450,7 +2457,7 @@ it is queried even when EXPERT is nil."
                'confirm
                (orgtbl-aggregate--cell-to-string hline))))
 
-      (setq postprocess (orgtbl-aggregate--alist-get-remove :post oldline))
+      (setq postprocess (orgtbl-aggregate--plist-get-remove :post oldline))
       (when (or expert postprocess)
         (orgtbl-aggregate--display-help :post)
         (setq postprocess
@@ -2488,8 +2495,9 @@ When EXPERT is nil, only basic parameters are queried.
 Note that when an expert parameter was set prior to entering the wizard,
 it is queried even when EXPERT is nil."
   (interactive "P")
-  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
-         (params (orgtbl-aggregate--wizard-aggregate-create-update oldline expert)))
+  (let* ((oldline (flatten-list (orgtbl-aggregate--parse-header-arguments "aggregate")))
+         (params
+          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert))))
     (when oldline
       (org-mark-element)
       (delete-region (region-beginning) (1- (region-end))))
@@ -2973,8 +2981,8 @@ Note:
 
 (defun orgtbl-aggregate--wizard-transpose-create-update (oldline expert)
   "Update OLDLINE parameters by interactivly querying user.
-OLDLINE is an alist containing parameter-value pairs.
-Example: \\'((:table . \"thetable\") (:cols . \"day month\") …)
+OLDLINE is a plist containing parameter-value pairs.
+Example: \\'(:table \"thetable\" :cols \"day month\" …)
 OLDLINE is supposed to be extracted from an Org Mode block such as:
 #+begin: transpose :table \"thetable\" :cols \"day month\" …
 If (point) is not on such a line, OLDLINE is nil.
@@ -2991,7 +2999,7 @@ it is queried even when EXPERT is nil."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--alist-get-remove :table oldline)
+             (orgtbl-aggregate--plist-get-remove :table oldline)
              expert))
 
       (setq headerlist
@@ -3008,10 +3016,10 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--alist-get-remove :cols oldline)
+              (orgtbl-aggregate--plist-get-remove :cols oldline)
               'orgtbl-aggregate-history-cols)))
 
-      (setq aggcond (orgtbl-aggregate--alist-get-remove :cond oldline))
+      (setq aggcond (orgtbl-aggregate--plist-get-remove :cond oldline))
       (when (or expert aggcond)
         (orgtbl-aggregate--display-help :cond header)
         (setq aggcond
@@ -3020,7 +3028,7 @@ it is queried even when EXPERT is nil."
                aggcond
                'orgtbl-aggregate-history-cols)))
 
-      (setq postprocess (orgtbl-aggregate--alist-get-remove :post oldline))
+      (setq postprocess (orgtbl-aggregate--plist-get-remove :post oldline))
       (when (or expert postprocess)
         (orgtbl-aggregate--display-help :post)
         (setq postprocess
@@ -3049,8 +3057,9 @@ it is queried even when EXPERT is nil."
 (defun orgtbl-aggregate-insert-dblock-transpose (&optional expert)
   "Wizard to interactively insert a transpose dynamic block."
   (interactive "P")
-  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "transpose"))
-         (params (orgtbl-aggregate--wizard-transpose-create-update oldline expert)))
+  (let* ((oldline (flatten-list (orgtbl-aggregate--parse-header-arguments "transpose")))
+         (params
+          (save-excursion (orgtbl-aggregate--wizard-transpose-create-update oldline expert))))
     (when oldline
       (org-mark-element)
       (delete-region (region-beginning) (1- (region-end))))
