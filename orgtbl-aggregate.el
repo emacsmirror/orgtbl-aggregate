@@ -2394,7 +2394,7 @@ it is queried even when EXPERT is nil."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--plist-get-remove :table oldline)
+             (orgtbl-aggregate--plist-get-remove oldline :table)
              expert))
 
       (setq headerlist
@@ -2405,7 +2405,7 @@ it is queried even when EXPERT is nil."
              (lambda (x) (format " ~%s~" x))
              headerlist))
 
-      (setq precompute (orgtbl-aggregate--plist-get-remove :precompute oldline))
+      (setq precompute (orgtbl-aggregate--plist-get-remove oldline :precompute))
       (when (or expert precompute)
         (orgtbl-aggregate--display-help :precompute header)
         (setq precompute
@@ -2434,10 +2434,10 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--plist-get-remove :cols oldline)
+              (orgtbl-aggregate--plist-get-remove oldline :cols)
               'orgtbl-aggregate-history-cols)))
 
-      (setq aggcond (orgtbl-aggregate--plist-get-remove :cond oldline))
+      (setq aggcond (orgtbl-aggregate--plist-get-remove oldline :cond))
       (when (or expert aggcond)
         (orgtbl-aggregate--display-help :cond header)
         (setq aggcond
@@ -2446,7 +2446,7 @@ it is queried even when EXPERT is nil."
                aggcond
                'orgtbl-aggregate-history-cols)))
 
-      (setq hline (orgtbl-aggregate--plist-get-remove :hline oldline))
+      (setq hline (orgtbl-aggregate--plist-get-remove oldline :hline))
       (when (or expert hline)
         (orgtbl-aggregate--display-help :hline)
         (setq hline
@@ -2457,7 +2457,7 @@ it is queried even when EXPERT is nil."
                'confirm
                (orgtbl-aggregate--cell-to-string hline))))
 
-      (setq postprocess (orgtbl-aggregate--plist-get-remove :post oldline))
+      (setq postprocess (orgtbl-aggregate--plist-get-remove oldline :post))
       (when (or expert postprocess)
         (orgtbl-aggregate--display-help :post)
         (setq postprocess
@@ -2480,10 +2480,13 @@ it is queried even when EXPERT is nil."
         (nconc params `(:precompute ,precompute)))
     (if (orgtbl-aggregate--nil-if-empty postprocess)
         (nconc params `(:post ,postprocess)))
+
+    ;; recover parameters not taken into account by the wizard
     (cl-loop
-     for pair in oldline
+     for pair on oldline
      if (car pair)
-     do (nconc params `(,(car pair) ,(cdr pair))))
+     do (nconc params `(,(car pair) ,(cadr pair)))
+     do (setq pair (cdr pair)))
     params))
 
 ;; [bazilo synchronize orgtbl-αggregate & orgtbl-joιn
@@ -2999,7 +3002,7 @@ it is queried even when EXPERT is nil."
     (save-window-excursion
       (setq table
             (orgtbl-aggregate--wizard-query-table
-             (orgtbl-aggregate--plist-get-remove :table oldline)
+             (orgtbl-aggregate--plist-get-remove oldline :table)
              expert))
 
       (setq headerlist
@@ -3016,10 +3019,10 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--plist-get-remove :cols oldline)
+              (orgtbl-aggregate--plist-get-remove oldline :cols)
               'orgtbl-aggregate-history-cols)))
 
-      (setq aggcond (orgtbl-aggregate--plist-get-remove :cond oldline))
+      (setq aggcond (orgtbl-aggregate--plist-get-remove oldline :cond))
       (when (or expert aggcond)
         (orgtbl-aggregate--display-help :cond header)
         (setq aggcond
@@ -3028,7 +3031,7 @@ it is queried even when EXPERT is nil."
                aggcond
                'orgtbl-aggregate-history-cols)))
 
-      (setq postprocess (orgtbl-aggregate--plist-get-remove :post oldline))
+      (setq postprocess (orgtbl-aggregate--plist-get-remove oldline :post))
       (when (or expert postprocess)
         (orgtbl-aggregate--display-help :post)
         (setq postprocess
@@ -3047,10 +3050,13 @@ it is queried even when EXPERT is nil."
       (nconc params `(:cond ,(read aggcond))))
     (unless (eq (length postprocess) 0)
       (nconc params `(:post ,postprocess)))
+
+    ;; recover parameters not taken into account by the wizard
     (cl-loop
-     for pair in oldline
+     for pair on oldline
      if (car pair)
-     do (nconc params `(,(car pair) ,(cdr pair))))
+     do (nconc params `(,(car pair) ,(cadr pair)))
+     do (setq pair (cdr pair)))
     params))
 
 ;;;###autoload
