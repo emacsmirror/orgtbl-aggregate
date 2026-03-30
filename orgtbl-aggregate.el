@@ -653,6 +653,16 @@ and the other way around."
 	(setq start (match-end 1))))
     (orgtbl-aggregate--list-get result)))
 
+(defun orgtbl-aggregate--merge-list-into-single-string (cols)
+  "Create a string representing the list COLS.
+This is the opposite of `orgtbl-aggregate--split-string-with-quotes'."
+  (if (listp cols)
+      (mapconcat
+       (lambda (x)
+         (format "%s" x)) ;; x already a string? returns it unchanged
+       cols " ")
+    cols))
+
 (defun orgtbl-aggregate--colname-to-int (colname table &optional err)
   "Convert the COLNAME into an integer.
 COLNAME is a column name of TABLE.
@@ -1094,6 +1104,8 @@ filled here too, and nowhere else.
 TABLE is used to convert a column name
 into the column number."
   ;; parse user specification
+  (unless (stringp col)
+    (setq col (format "%s" col)))
   (unless (string-match
            (rx
             bos
@@ -2149,7 +2161,7 @@ Note:
 (defvar orgtbl-aggregate-history-cols ())
 
 (defun orgtbl-aggregate--parse-header-arguments (type)
-  "If (point) is on a #+begin: line, parse it, and return an a-list.
+  "If (point) is on a #+begin: line, parse it, and return a plist.
 TYPE is \"aggregate\", or possibly any type of block.
 If the line the (point) is on do not match TYPE, return nil."
   (let ((line (buffer-substring-no-properties
@@ -2158,10 +2170,18 @@ If the line the (point) is on do not match TYPE, return nil."
         (case-fold-search t))
     (and
      (string-match
-      (rx bos (* blank) "#+begin:" (* blank) (group (+ word)))
+      (rx bos (* blank) "#+begin:" (* blank) (group (+ word)) (group (* nonl)) eos)
       line)
      (equal (match-string 1 line) type)
-     (cdr (org-babel-parse-header-arguments line t)))))
+     (let ((list (read (concat "(" (match-string 2 line) ")"))))
+       (cl-loop
+        for pair on list
+        for val = (cadr pair)
+        do
+        (if (symbolp val)
+            (setcar (cdr pair) (symbol-name val)))
+        (setq pair (cdr pair)))
+       list))))
 
 (defun orgtbl-aggregate--dismiss-help ()
   "Hide the wizard help window."
@@ -2434,7 +2454,8 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--plist-get-remove oldline :cols)
+              (orgtbl-aggregate--merge-list-into-single-string
+               (orgtbl-aggregate--plist-get-remove oldline :cols))
               'orgtbl-aggregate-history-cols)))
 
       (setq aggcond (orgtbl-aggregate--plist-get-remove oldline :cond))
@@ -2443,7 +2464,7 @@ it is queried even when EXPERT is nil."
         (setq aggcond
               (read-string
                "Row filter (optional): "
-               aggcond
+               (and aggcond (format "%s" aggcond))
                'orgtbl-aggregate-history-cols)))
 
       (setq hline (orgtbl-aggregate--plist-get-remove oldline :hline))
@@ -2498,7 +2519,7 @@ When EXPERT is nil, only basic parameters are queried.
 Note that when an expert parameter was set prior to entering the wizard,
 it is queried even when EXPERT is nil."
   (interactive "P")
-  (let* ((oldline (flatten-list (orgtbl-aggregate--parse-header-arguments "aggregate")))
+  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
          (params
           (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert))))
     (when oldline
@@ -2668,26 +2689,28 @@ individual parameter for an easier reading."
   (let* ((line (orgtbl-aggregate--parse-header-arguments "aggregate"))
          (point (progn (end-of-line) (point)))
          (struct (orgtbl-aggregate--parse-locator
-                  (orgtbl-aggregate--alist-get-remove :table line))))
+                  (orgtbl-aggregate--plist-get-remove line :table))))
     (insert "\n#+aggregate: :file "   (or (aref struct 0) ""))
     (insert "\n#+aggregate: :name "   (or (aref struct 1) ""))
     (insert "\n#+aggregate: :orgid "  (or (aref struct 2) ""))
     (insert "\n#+aggregate: :params " (or (aref struct 3) ""))
     (insert "\n#+aggregate: :slice "  (or (aref struct 4) ""))
     (insert "\n#+aggregate: :precompute "
-            (or (orgtbl-aggregate--alist-get-remove :precompute line) ""))
+            (or (orgtbl-aggregate--plist-get-remove line :precompute) ""))
     (insert "\n#+aggregate: :cols "
-            (or (orgtbl-aggregate--alist-get-remove :cols       line) ""))
+            (orgtbl-aggregate--merge-list-into-single-string
+             (or (orgtbl-aggregate--plist-get-remove line :cols ) "")))
     (insert "\n#+aggregate: :cond "
-            (or (orgtbl-aggregate--alist-get-remove :cond       line) ""))
+            (format "%s" (or (orgtbl-aggregate--plist-get-remove  line :cond ) "")))
     (insert "\n#+aggregate: :hline "
-            (or (orgtbl-aggregate--alist-get-remove :hline      line) ""))
+            (format "%s" (or (orgtbl-aggregate--plist-get-remove  line :hline) "")))
     (insert "\n#+aggregate: :post "
-            (or (orgtbl-aggregate--alist-get-remove :post       line) ""))
+            (format "%s" (or (orgtbl-aggregate--plist-get-remove  line :post ) "")))
     (cl-loop
-     for pair in line
+     for pair on line
      if (car pair)
-     do (insert (format "\n#+aggregate: %s %s" (car pair) (cdr pair))))
+     do (insert (format "\n#+aggregate: %s %s" (car pair) (cadr pair)))
+     do (setq pair (cdr pair)))
     (goto-char point)
     (beginning-of-line)
     (forward-word 2)
@@ -3019,7 +3042,8 @@ it is queried even when EXPERT is nil."
              "\"" "'"
              (read-string
               "Target columns & formulas: "
-              (orgtbl-aggregate--plist-get-remove oldline :cols)
+              (orgtbl-aggregate--merge-list-into-single-string
+               (orgtbl-aggregate--plist-get-remove oldline :cols))
               'orgtbl-aggregate-history-cols)))
 
       (setq aggcond (orgtbl-aggregate--plist-get-remove oldline :cond))
@@ -3063,7 +3087,7 @@ it is queried even when EXPERT is nil."
 (defun orgtbl-aggregate-insert-dblock-transpose (&optional expert)
   "Wizard to interactively insert a transpose dynamic block."
   (interactive "P")
-  (let* ((oldline (flatten-list (orgtbl-aggregate--parse-header-arguments "transpose")))
+  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "transpose"))
          (params
           (save-excursion (orgtbl-aggregate--wizard-transpose-create-update oldline expert))))
     (when oldline
