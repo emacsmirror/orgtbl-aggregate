@@ -2846,6 +2846,7 @@ If AGGCOND is nil, all source rows are taken."
         ;; '(t) or `(t) would be incorrect╶────────▷─╯
         (nhline 0))
     (cl-loop for row in table
+             for rownum from 0
 	     do
 	     (if (eq row 'hline)
 		 (setq nhline (1+ nhline))
@@ -2856,12 +2857,19 @@ If AGGCOND is nil, all source rows are taken."
 		for spec in cols
 		for r in result
 		do
-		(nconc r (list (if (eq row 'hline) "" (nth spec row)))))))
+		(nconc
+                 r
+                 (list
+                  (cond
+                   ((eq row 'hline) "")
+                   ((eq spec 0) rownum)
+                   ((>= spec (length row)) (nth 0 row))
+                   (t (nth spec row))))))))
     (cl-loop for row in result
 	     do (orgtbl-aggregate--pop-simple row)
 	     collect
 	     (if (cl-loop for x in row
-			  always (string= "" x))
+			  always (equal "" x))
 		 'hline
 	       row))))
 

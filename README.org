@@ -6,8 +6,12 @@ Aggregating a table is creating a new table by computing sums,
 averages, and so on, out of material from the first table.
 
 * New
-The wizard now offers the basic and expert modes. Use =C-u= to launch in
-expert mode. See [[#guiding-traditional-wizard][Guiding (traditional) wizard]].
+Transpose-babel blocks now handle =@#= and =hline= special columns. =@#= is
+the input table row number. =hline= is the block number between two
+horizontal lines where the current row is located.
+
+And by the way, yes, =orgtbl-aggregate= comes with =orgtbl-transpose= as a
+bonus. It flips rows with columns.
 
 * Table of Contents
 :PROPERTIES:
@@ -3344,6 +3348,7 @@ Top: earliest change. Bottom: latest change.
 - JSON and CSV input tables can now live inside Org Mode blocks.
 - Example for computing a refreshable grand total.
 - Document intervals and error-forms handling.
+- Special columns =@#= and =hline= are handled by transpose.
 
 * GPL 3 License
 :PROPERTIES:
