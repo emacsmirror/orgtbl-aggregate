@@ -445,3 +445,42 @@ buffer. When done, the buffer and the original, untouched
 | mon  |   | no   |   23 |   10 |
 | sat  |   | no   |   22 |   25 |
 #+END:
+
+* update preserving #+tblfm: formula
+
+#+begin_src elisp :results none
+(orgtbl-aggregate-wizard-test
+ :init       "C-c C-x x aggreg <tab> <return>"
+ :file       "C-a SPC C-a C-k distant-tests.org <return>"
+ :name       "C-a SPC C-a C-k distanttabl <tab> <return>"
+ :slice      "<return>"
+ :cols       "<return>"
+)
+#+end_src
+ #+BEGIN: aggregate :table "distant-tests.org:distanttable[0:10]" :cols "tag vsum(val)" :formula "$3=$2*10"
+ | tag | vsum(val) |        |         |
+ |-----+-----------+--------+---------|
+ | A   |    210.76 | 2107.6 | 12107.6 |
+ | BB  |    257.22 | 2572.2 | 12572.2 |
+ | CCC |     92.06 |  920.6 | 10920.6 |
+ #+TBLFM: $3=$2*10::$4=$3+10000
+ #+END:
+ ▲
+ ╰──indent in order to update the #+begin: line instead of creating it anew
+
+#+begin_src elisp :results none
+(orgtbl-aggregate-wizard-test
+ :init       "C-c C-x x transpose <tab> <return>"
+ :file       "C-a SPC C-a C-k distant-tests.org <return>"
+ :name       "C-a SPC C-a C-k distanttabl <tab> <return>"
+ :slice      "<return>"
+ :cols       "<return>"
+)
+#+end_src
+ #+BEGIN: transpose :table "distant-tests.org:distanttable[0:5]" :cols ""
+ | tag |   |     A |    BB |   CCC |    BB | BB + 1000 |
+ | val |   | 11.58 | 98.43 | 87.74 | 87.97 |   1087.97 |
+ #+TBLFM: $7=$-1+1000
+ #+END:
+ ▲
+ ╰──indent in order to update the #+begin: line instead of creating it anew

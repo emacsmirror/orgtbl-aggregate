@@ -926,6 +926,16 @@ with an Org Mode table."
       (eval post)))
    (t (user-error ":post %S header could not be understood" post))))
 
+(defun orgtbl-aggregate--recover-TBLFM (content)
+  "Return a line begining with #+tblfm: within CONTENT, if any."
+  (and
+   content
+   (let ((case-fold-search t))
+     (string-match
+      (rx bol (* blank) (group "#+tblfm:" (* nonl)))
+      content))
+   (match-string 1 content)))
+
 (defun orgtbl-aggregate--recalculate-fast ()
   "Wrapper arround `org-table-recalculate'.
 The standard `org-table-recalculate' function is slow because
@@ -965,14 +975,7 @@ The computed table may have formulas which need to be recomputed.
 This function adds a #+TBLFM: line at the end of the table.
 It merges old formulas (if any) contained in CONTENT,
 with new formulas (if any) given in the `formula' directive."
-  (let ((tblfm
-         ;; Was there already a #+tblfm: line ? Recover it.
-         (and content
-	      (let ((case-fold-search t))
-	        (string-match
-	         (rx bol (* blank) (group "#+tblfm:" (* nonl)))
-	         content))
-              (match-string 1 content))))
+  (let ((tblfm (orgtbl-aggregate--recover-TBLFM content))) ;; recover a #+tblfm: line
     (if (stringp formula)
         ;; There is a :formula directive. Add it if not already there
         (if tblfm
@@ -2521,11 +2524,20 @@ it is queried even when EXPERT is nil."
   (interactive "P")
   (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
          (params
-          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert))))
+          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert)))
+         tblfm)
     (when oldline
       (org-mark-element)
+      (setq tblfm
+            (orgtbl-aggregate--recover-TBLFM
+             (buffer-substring-no-properties
+              (region-beginning) (1- (region-end)))))
       (delete-region (region-beginning) (1- (region-end))))
     (org-create-dblock params)
+    (when tblfm
+      (forward-line 1)
+      (insert "\n" tblfm)
+      (forward-line -2))
     (org-update-dblock)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3097,11 +3109,20 @@ it is queried even when EXPERT is nil."
   (interactive "P")
   (let* ((oldline (orgtbl-aggregate--parse-header-arguments "transpose"))
          (params
-          (save-excursion (orgtbl-aggregate--wizard-transpose-create-update oldline expert))))
+          (save-excursion (orgtbl-aggregate--wizard-transpose-create-update oldline expert)))
+         tblfm)
     (when oldline
       (org-mark-element)
+      (setq tblfm
+            (orgtbl-aggregate--recover-TBLFM
+             (buffer-substring-no-properties
+              (region-beginning) (1- (region-end)))))
       (delete-region (region-beginning) (1- (region-end))))
     (org-create-dblock params)
+    (when tblfm
+      (forward-line 1)
+      (insert "\n" tblfm)
+      (forward-line -2))
     (org-update-dblock)))
 
 ;; [bazilo synchronize orgtbl-αggregate & orgtbl-joιn
