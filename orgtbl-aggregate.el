@@ -2139,12 +2139,21 @@ Note:
   (let ((formula (plist-get params :formula))
 	(content (plist-get params :content))
 	(post    (plist-get params :post)))
-    (if (and content
-	     (let ((case-fold-search t))
-	       (string-match
-		(rx bos (+ (* blank) "#+" (* nonl) "\n"))
-		content)))
-	(insert (match-string 0 content)))
+    (if content
+	(let ((case-fold-search t))
+	  (string-match
+	   (rx bos
+               (* (* blank) "\n")
+               (group (* (* blank) (? "#+" (* nonl)) "\n")))
+	   content)
+          (insert
+           (replace-regexp-in-string
+            (rx bol (* (or blank "\n")) eos)
+            ""
+            (replace-regexp-in-string
+             (rx bol "#+tblfm" (* (or any "\n")) eos)
+             ""
+             (match-string 1 content))))))
     (orgtbl-aggregate--insert-elisp-table
      (orgtbl-aggregate--post-process
       (orgtbl-aggregate--create-table-aggregated
@@ -2524,20 +2533,17 @@ it is queried even when EXPERT is nil."
   (interactive "P")
   (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
          (params
-          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert)))
-         tblfm)
-    (when oldline
-      (org-mark-element)
-      (setq tblfm
-            (orgtbl-aggregate--recover-TBLFM
-             (buffer-substring-no-properties
-              (region-beginning) (1- (region-end)))))
-      (delete-region (region-beginning) (1- (region-end))))
-    (org-create-dblock params)
-    (when tblfm
+          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert))))
+    (if (not oldline)
+        (org-create-dblock params)
+      (beginning-of-line)
+      (kill-line)
+      (org-create-dblock params)
+      (delete-blank-lines)
       (forward-line 1)
-      (insert "\n" tblfm)
-      (forward-line -2))
+      (kill-line 1)
+      (forward-line -1)
+      (delete-blank-lines))
     (org-update-dblock)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3009,12 +3015,21 @@ Note:
   (let ((formula (plist-get params :formula))
 	(content (plist-get params :content))
 	(post    (plist-get params :post)))
-    (if (and content
-	     (let ((case-fold-search t))
-	       (string-match
-		(rx bos (+ (* blank) "#+" (* nonl) "\n"))
-		content)))
-	(insert (match-string 0 content)))
+    (if content
+	(let ((case-fold-search t))
+	  (string-match
+	   (rx bos
+               (* (* blank) "\n")
+               (group (* (* blank) (? "#+" (* nonl)) "\n")))
+	   content)
+          (insert
+           (replace-regexp-in-string
+            (rx bol (* (or blank "\n")) eos)
+            ""
+            (replace-regexp-in-string
+             (rx bol "#+tblfm" (* (or any "\n")) eos)
+             ""
+             (match-string 1 content))))))
     (orgtbl-aggregate--insert-elisp-table
      (orgtbl-aggregate--post-process
       (orgtbl-aggregate--create-table-transposed
