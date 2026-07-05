@@ -381,13 +381,12 @@ but this has already been short-circuited."
      table)))
 
 (defun orgtbl-aggregate--block-from-name (file name)
-  "Parse an Org table named NAME in a distant Org file named FILE.
+  "Retrieve the content of an Org block in a distant Org file.
 FILE is a filename with possible relative or absolute path.
-If FILE is nil, look in the current buffer."
+If FILE is nil, look in the current buffer.
+NAME should match a #+name: tag."
   (with-current-buffer
-      (if file
-          (find-file-noselect file)
-        (current-buffer))
+      (if file (find-file-noselect file) (current-buffer))
     (save-excursion
       (goto-char (point-min))
       (let ((case-fold-search t))
@@ -422,9 +421,7 @@ Currently, there is no header."
     (if name
         (setq block (orgtbl-aggregate--block-from-name file name)))
     (with-temp-buffer
-      (if name
-          (insert block)
-        (insert-file-contents file))
+      (if name (insert block) (insert-file-contents file))
       (orgtbl-aggregate--csv-to-lisp header colnames))))
 
 (defun orgtbl-aggregate--table-from-json (file name _params)
@@ -455,11 +452,11 @@ to the column names."
              (json-read-file file)))
           (colnames ())
           (result))
-      (when (and (cddr json)                ;; at least 2 rows
-                 (consp (car json))         ;; first row is a vector
-                 (not (consp (cadr json)))) ;; second row is an hline
-        (setq colnames (car json)) ;; then first row contains column names
-        (setq json (cddr json)))
+      (and (cddr json)                ;; at least 2 rows
+           (consp (car json))         ;; first row is a vector
+           (not (consp (cadr json)))  ;; second row is an hline
+           (setq colnames (car json)  ;; then first row contains column names
+                 json    (cddr json)))
       (setq
        result
        (cl-loop
@@ -495,9 +492,7 @@ to the column names."
 FILE is a filename with possible relative or absolute path.
 If FILE is nil, look in the current buffer."
   (with-current-buffer
-      (if file
-          (find-file-noselect file)
-        (current-buffer))
+      (if file (find-file-noselect file) (current-buffer))
     (save-excursion
       (goto-char (point-min))
       (and
@@ -513,17 +508,19 @@ If FILE is nil, look in the current buffer."
   "Parse a table following a header in a distant Org file.
 The header have an ID property equal to ID in a PROPERTY drawer."
   (let ((id-loc (org-id-find id 'marker)))
-    (when (and id-loc (markerp id-loc))
-      (with-current-buffer (marker-buffer id-loc)
-        (save-excursion
-          (goto-char (marker-position id-loc))
-          (move-marker id-loc nil)
-          (and
-           (let ((case-fold-search t))
-             (re-search-forward
-              (rx point (skip-meta-table (any "*#:")))
-              nil t))
-           (orgtbl-aggregate--table-to-lisp)))))))
+    (and
+     id-loc
+     (markerp id-loc)
+     (with-current-buffer (marker-buffer id-loc)
+       (save-excursion
+         (goto-char (marker-position id-loc))
+         (move-marker id-loc nil)
+         (and
+          (let ((case-fold-search t))
+            (re-search-forward
+             (rx point (skip-meta-table (any "*#:")))
+             nil t))
+          (orgtbl-aggregate--table-to-lisp)))))))
 
 (defun orgtbl-aggregate--nil-if-empty (field)
   (and
@@ -571,15 +568,14 @@ as an Org Id and put in the `orgid' field."
         (orgid                                                           )
         (params (orgtbl-aggregate--nil-if-empty (match-string 3 locator)))
         (slice  (orgtbl-aggregate--nil-if-empty (match-string 4 locator))))
-    (when (and
-           (not file)
-           (progn
-             (unless org-id-locations (org-id-locations-load))
-             (and org-id-locations
-	          (hash-table-p org-id-locations)
-	          (gethash name org-id-locations))))
-      (setq orgid name)
-      (setq name nil))
+    (and
+     (not file)
+     (or org-id-locations (org-id-locations-load))
+     (hash-table-p org-id-locations)
+     (gethash name org-id-locations)
+     (setq
+      orgid name
+      name nil))
     (vector file name orgid params slice)))
 
 (defun orgtbl-aggregate--assemble-locator (file name orgid params slice)
@@ -633,7 +629,7 @@ An horizontal line is translated as the special symbol `hline'."
                 (if file
                     (format "%s:%s%s" file name params)
                   (format "%s%s" name params)))))
-         ;;name-or-id = "table" or "file:table"
+         ;; name-or-id = "table" or "file:table"
          ((orgtbl-aggregate--table-from-name file name))
          ;; name-or-id = "babel" or "file:babel"
          ((orgtbl-aggregate--table-from-babel
@@ -928,16 +924,6 @@ with an Org Mode table."
       (eval post)))
    (t (user-error ":post %S header could not be understood" post))))
 
-(defun orgtbl-aggregate--recover-TBLFM (content)
-  "Return a line begining with #+tblfm: within CONTENT, if any."
-  (and
-   content
-   (let ((case-fold-search t))
-     (string-match
-      (rx bol blanks (group "#+tblfm:" (* nonl)))
-      content))
-   (match-string 1 content)))
-
 (defun orgtbl-aggregate--recalculate-fast ()
   "Wrapper arround `org-table-recalculate'.
 The standard `org-table-recalculate' function is slow because
@@ -977,7 +963,14 @@ The computed table may have formulas which need to be recomputed.
 This function adds a #+TBLFM: line at the end of the table.
 It merges old formulas (if any) contained in CONTENT,
 with new formulas (if any) given in the `formula' directive."
-  (let ((tblfm (orgtbl-aggregate--recover-TBLFM content))) ;; recover a #+tblfm: line
+  (let ((tblfm  ;; recover a #+tblfm: line if any
+         (and
+          content
+          (let ((case-fold-search t))
+            (string-match
+             (rx bol blanks (group "#+tblfm:" (* nonl)))
+             content))
+          (match-string 1 content))))
     (if (stringp formula)
         ;; There is a :formula directive. Add it if not already there
         (if tblfm
@@ -2564,16 +2557,15 @@ it is queried even when EXPERT is nil."
 
 ;; [bazilo synchronize orgtbl-αggregate & orgtbl-joιn
 
-;;;###autoload
-(defun orgtbl-aggregate-insert-dblock-aggregate (&optional expert)
-  "Wizard to interactively insert a dynamic aggregated block.
-When EXPERT is nil, only basic parameters are queried.
-Note that when an expert parameter was set prior to entering the wizard,
-it is queried even when EXPERT is nil."
-  (interactive "P")
-  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "aggregate"))
+(defun orgtbl-aggregate--insert-dblock (name fun expert)
+  "Wizard to interactively insert a dynamic block.
+NAME is either \"aggregate\" or \"transpose\".
+FUN is
+ either `orgtbl-aggregate--wizard-aggregate-create-update'
+ or     `orgtbl-aggregate--wizard-transpose-create-update'."
+  (let* ((oldline (orgtbl-aggregate--parse-header-arguments name))
          (params
-          (save-excursion (orgtbl-aggregate--wizard-aggregate-create-update oldline expert))))
+          (save-excursion (funcall fun oldline expert))))
     (if (not oldline)
         (org-create-dblock params)
       (beginning-of-line)
@@ -2585,6 +2577,18 @@ it is queried even when EXPERT is nil."
       (forward-line -1)
       (delete-blank-lines))
     (org-update-dblock)))
+
+;;;###autoload
+(defun orgtbl-aggregate-insert-dblock-aggregate (&optional expert)
+  "Wizard to interactively insert a dynamic aggregated block.
+When EXPERT is nil, only basic parameters are queried.
+Note that when an expert parameter was set prior to entering the wizard,
+it is queried even when EXPERT is nil."
+  (interactive "P")
+  (orgtbl-aggregate--insert-dblock
+   "aggregate"
+   #'orgtbl-aggregate--wizard-aggregate-create-update
+   expert))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Unfold, Fold
@@ -3135,20 +3139,10 @@ When EXPERT is nil, only basic parameters are queried.
 Note that when an expert parameter was set prior to entering the wizard,
 it is queried even when EXPERT is nil."
   (interactive "P")
-  (let* ((oldline (orgtbl-aggregate--parse-header-arguments "transpose"))
-         (params
-          (save-excursion (orgtbl-aggregate--wizard-transpose-create-update oldline expert))))
-    (if (not oldline)
-        (org-create-dblock params)
-      (beginning-of-line)
-      (kill-line)
-      (org-create-dblock params)
-      (delete-blank-lines)
-      (forward-line 1)
-      (kill-line 1)
-      (forward-line -1)
-      (delete-blank-lines))
-    (org-update-dblock)))
+  (orgtbl-aggregate--insert-dblock
+   "transpose"
+   #'orgtbl-aggregate--wizard-transpose-create-update
+   expert))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Unfold, Fold

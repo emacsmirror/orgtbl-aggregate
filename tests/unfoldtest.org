@@ -23,6 +23,7 @@ buffer. When done, the buffer and the original, untouched
 ~unfoldtest.org~, are compared, stopping at the first difference.
 
 #+begin_src elisp :results none
+(load-file "ensure-org-id-locations.el")
 ;; define a utility to run a unit test
 (defun orgtbl-aggregate-unfold-test (&rest args)
   (execute-kbd-macro
