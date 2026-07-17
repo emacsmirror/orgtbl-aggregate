@@ -83,7 +83,7 @@ Also, the directory part is simplified when querying a file name.
   - [[#json-input][JSON input]]
   - [[#input-slicing][Input slicing]]
   - [[#the-cond-filter][The :cond filter]]
-  - [[#virtual-input-columns][Virtual input columns]]
+  - [[#virtual-input-columns-with-precompute][Virtual input columns with :precompute]]
 - [[#post-processing][Post-processing]]
   - [[#spreadsheet-formulas][Spreadsheet formulas]]
   - [[#algorithm-post-processing][Algorithm post processing]]
@@ -104,6 +104,7 @@ Also, the directory part is simplified when querying a file name.
   - [[#a-few-lowest-or-highest-values][A few lowest or highest values]]
   - [[#span-of-values][Span of values]]
   - [[#no-aggregation][No aggregation]]
+  - [[#look-at-the-first-rows-of-a-large-table][Look at the first rows of a large table]]
 - [[#installation][Installation]]
 - [[#authors-contributors][Authors, contributors]]
 - [[#changes][Changes]]
@@ -2311,7 +2312,7 @@ It is possible to mix both formats: vectors and hash-objects. Example:
   ["quty","color"],                         // incomplete header
   null,                                     // horizontal line
   {"day":"mon", "quty":12, "color":"red" }, // an hash-object
-  ["thu", 34, "blue" ],                     // a vector
+  [34, "blue", "thu" ],                     // a vector
   …
 ]
 #+end_example
@@ -2323,8 +2324,8 @@ block of any kind. Example with a "src" block for JavaScript:
 #+name: myjsondata
 #+begin_src js
 [
-  ["day","quty","color"],
-  "hline",
+  ["day","quty","color"],   // names of columns in the header
+  [],                       // an horizontal line
   ["mon",12,"red"  ],
   ["thu",34,"blue" ],
   …
@@ -2380,9 +2381,9 @@ table are specified as key columns, and output in the resulting table.
 This is useful when just filtering. But be aware that aggregation
 still occurs. So duplicate input rows appear only once in the result.
 
-** Virtual input columns
+** Virtual input columns with =:precompute=
 :PROPERTIES:
-:CUSTOM_ID: virtual-input-columns
+:CUSTOM_ID: virtual-input-columns-with-precompute
 :END:
 What if we want to aggregate on months? But the input table contains
 only plain dates. Example:
@@ -2510,6 +2511,15 @@ coarse bins. Bins are just hundredths of the first column:
 #+END:
 #+end_example
 
+Here =:precompute= added a third column names =$3=. It is computed with a
+Lisp expression which:
+- =(string-to-number $1)=: converts the first column to a Lisp number,
+- =(/ … 100)=: divides it by 100,
+- =(floor (/ …))=: rounds the result to an integer.
+
+Note the single quote before the Lisp expression. This is the way to
+specify a Lisp expression in Org-Mode spreadsheet.
+
 Virtual columns may be formatted as any other column, with the same
 syntax as in =:cols= or in the Org table spreadsheet. For example here
 we give it 2 digits after dot:
@@ -2546,6 +2556,24 @@ The =:precompute= parameter may be:
 - a string containing a single formula (actually this is a special
   case of the previous one). Example:
 : "month(Date);'Month'"
+
+*Warning!*
+
+The =:precompute= feature is by far the slowest in OrgAggregate. For
+instance, a 3820 lines CSV file gets aggregated in less than 0.2
+seconds. But with a =:precompute= expression adding a new column, time
+goes up to 57 seconds (a ×285 slowdown).
+
+This is because =:precompute= delegates the computing to Org-Mode
+spreadsheet. Behind the scene,
+- the input table is inserted as a temporary Org-Mode table,
+- the =:precompute= formula is added,
+- Org-Mode spreadsheet refreshes the table,
+- then this temporary table becomes the new input before being erased.
+
+OrgAggregate has been designed & optimized for speed. Thus it can
+exhibit response times of fractions of second, even for tables with
+thousands of rows.
 
 * Post-processing
 :PROPERTIES:
@@ -3247,6 +3275,27 @@ otherwise we would get a vector with a single value. As there is a
 single value, any aggregating function will do the trick: =vmin()=,
 =head()=, =rtail()=, =vsum()=, =vprod()=, =vmean()=, =vgmean()=, =vhmean()=, =vspan()=,
 =vmedian()=.
+
+** Look at the first rows of a large table
+:PROPERTIES:
+:CUSTOM_ID: look-at-the-first-rows-of-a-large-table
+:END:
+
+We have a table with thousands of rows. We are interested just in its
+header, and maybe the first few rows. OrgAggregate can provide that:
+
+#+begin_example
+#+BEGIN: aggregate :table "largetable.csv:(csv header)[0:3]"
+| day | color  | quantity |
+|-----+--------+----------|
+| thu | red    |      115 |
+| fri | yellow |       78 |
+#+END:
+#+end_example
+
+The trick is to use slicing. Here we specified =[0:3]= to retrieve only
+the 4 first rows of the huge input. We omitted the =:cols= parameters,
+therefore asking OrgAggregate to provide all input columns.
 
 * Installation
 :PROPERTIES:

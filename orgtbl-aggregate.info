@@ -125,7 +125,7 @@ Wide variety of inputs
 * JSON input::
 * Input slicing::
 * Thecond filter: The cond filter.
-* Virtual input columns::
+* Virtual input columns with precompute::
 
 Post-processing
 
@@ -154,6 +154,7 @@ Tricks
 * A few lowest or highest values::
 * Span of values::
 * No aggregation::
+* Look at the first rows of a large table::
 
 
 
@@ -2162,7 +2163,7 @@ several places.  OrgAggregate adds even more kinds of input.
 * JSON input::
 * Input slicing::
 * Thecond filter: The cond filter.
-* Virtual input columns::
+* Virtual input columns with precompute::
 
 
 File: orgtbl-aggregate.info,  Node: Standard Org Mode input,  Next: Virtual input table from Babel,  Up: Wide variety of inputs
@@ -2385,7 +2386,7 @@ Example:
        ["quty","color"],                         // incomplete header
        null,                                     // horizontal line
        {"day":"mon", "quty":12, "color":"red" }, // an hash-object
-       ["thu", 34, "blue" ],                     // a vector
+       [34, "blue", "thu" ],                     // a vector
        …
      ]
 
@@ -2395,8 +2396,8 @@ block of any kind.  Example with a "src" block for JavaScript:
      #+name: myjsondata
      #+begin_src js
      [
-       ["day","quty","color"],
-       "hline",
+       ["day","quty","color"],   // names of columns in the header
+       [],                       // an horizontal line
        ["mon",12,"red"  ],
        ["thu",34,"blue" ],
        …
@@ -2423,7 +2424,7 @@ references may be followed by an optional slicing.  Examples:
      columns.
 
 
-File: orgtbl-aggregate.info,  Node: The cond filter,  Next: Virtual input columns,  Prev: Input slicing,  Up: Wide variety of inputs
+File: orgtbl-aggregate.info,  Node: The cond filter,  Next: Virtual input columns with precompute,  Prev: Input slicing,  Up: Wide variety of inputs
 
 12.7 The :cond filter
 =====================
@@ -2455,10 +2456,10 @@ are specified as key columns, and output in the resulting table.
 still occurs.  So duplicate input rows appear only once in the result.
 
 
-File: orgtbl-aggregate.info,  Node: Virtual input columns,  Prev: The cond filter,  Up: Wide variety of inputs
+File: orgtbl-aggregate.info,  Node: Virtual input columns with precompute,  Prev: The cond filter,  Up: Wide variety of inputs
 
-12.8 Virtual input columns
-==========================
+12.8 Virtual input columns with ‘:precompute’
+=============================================
 
 What if we want to aggregate on months?  But the input table contains
 only plain dates.  Example:
@@ -2577,6 +2578,16 @@ on coarse bins.  Bins are just hundredths of the first column:
      |  9 |     93.48 |
      #+END:
 
+   Here ‘:precompute’ added a third column names ‘$3’.  It is computed
+with a Lisp expression which:
+   • ‘(string-to-number $1)’: converts the first column to a Lisp
+     number,
+   • ‘(/ … 100)’: divides it by 100,
+   • ‘(floor (/ …))’: rounds the result to an integer.
+
+   Note the single quote before the Lisp expression.  This is the way to
+specify a Lisp expression in Org-Mode spreadsheet.
+
    Virtual columns may be formatted as any other column, with the same
 syntax as in ‘:cols’ or in the Org table spreadsheet.  For example here
 we give it 2 digits after dot:
@@ -2611,6 +2622,25 @@ parameter).  There is no difference between actual and virtual columns.
    • a string containing a single formula (actually this is a special
      case of the previous one).  Example:
      "month(Date);'Month'"
+
+   *Warning!*
+
+   The ‘:precompute’ feature is by far the slowest in OrgAggregate.  For
+instance, a 3820 lines CSV file gets aggregated in less than 0.2
+seconds.  But with a ‘:precompute’ expression adding a new column, time
+goes up to 57 seconds (a ×285 slowdown).
+
+   This is because ‘:precompute’ delegates the computing to Org-Mode
+spreadsheet.  Behind the scene,
+   • the input table is inserted as a temporary Org-Mode table,
+   • the ‘:precompute’ formula is added,
+   • Org-Mode spreadsheet refreshes the table,
+   • then this temporary table becomes the new input before being
+     erased.
+
+   OrgAggregate has been designed & optimized for speed.  Thus it can
+exhibit response times of fractions of second, even for tables with
+thousands of rows.
 
 
 File: orgtbl-aggregate.info,  Node: Post-processing,  Next: Pull & Push,  Prev: Wide variety of inputs,  Up: Top
@@ -3181,6 +3211,7 @@ This chapter collects some tricks that may be useful.
 * A few lowest or highest values::
 * Span of values::
 * No aggregation::
+* Look at the first rows of a large table::
 
 
 File: orgtbl-aggregate.info,  Node: Sorting (1),  Next: A few lowest or highest values,  Up: Tricks
@@ -3254,7 +3285,7 @@ File: orgtbl-aggregate.info,  Node: Span of values,  Next: No aggregation,  Prev
      #+END:
 
 
-File: orgtbl-aggregate.info,  Node: No aggregation,  Prev: Span of values,  Up: Tricks
+File: orgtbl-aggregate.info,  Node: No aggregation,  Next: Look at the first rows of a large table,  Prev: Span of values,  Up: Tricks
 
 16.4 No aggregation
 ===================
@@ -3305,6 +3336,26 @@ otherwise we would get a vector with a single value.  As there is a
 single value, any aggregating function will do the trick: ‘vmin()’,
 ‘head()’, ‘rtail()’, ‘vsum()’, ‘vprod()’, ‘vmean()’, ‘vgmean()’,
 ‘vhmean()’, ‘vspan()’, ‘vmedian()’.
+
+
+File: orgtbl-aggregate.info,  Node: Look at the first rows of a large table,  Prev: No aggregation,  Up: Tricks
+
+16.5 Look at the first rows of a large table
+============================================
+
+We have a table with thousands of rows.  We are interested just in its
+header, and maybe the first few rows.  OrgAggregate can provide that:
+
+     #+BEGIN: aggregate :table "largetable.csv:(csv header)[0:3]"
+     | day | color  | quantity |
+     |-----+--------+----------|
+     | thu | red    |      115 |
+     | fri | yellow |       78 |
+     #+END:
+
+   The trick is to use slicing.  Here we specified ‘[0:3]’ to retrieve
+only the 4 first rows of the huge input.  We omitted the ‘:cols’
+parameters, therefore asking OrgAggregate to provide all input columns.
 
 
 File: orgtbl-aggregate.info,  Node: Installation,  Next: Authors contributors,  Prev: Tricks,  Up: Top
@@ -3485,90 +3536,91 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Tag Table:
 Node: Top209
-Node: New3098
-Node: Examples3673
-Node: A very simple example3943
-Node: Demonstrate sum and average computing6298
-Node: Example without days9636
-Node: Example of counting each combination10504
-Node: Stop reading here! 80/2013184
-Node: Name your input table13664
-Node: Create an aggregation block14317
-Node: Refresh the aggregation15239
-Node: Equivalent in SQL R Datamash el-tblfn Awk C++16879
-Node: SQL equivalent17523
-Node: R equivalent17869
-Node: Datamash equivalent18403
-Node: el-tblfn18977
-Node: Awk equivalent19709
-Node: C++ equivalent20439
-Node: Wizards21563
-Node: Guiding (traditional) wizard21859
-Node: Experimental free form wizard24028
-Node: The cols parameter26074
-Node: Names of input columns26745
-Node: Grouping specifications in cols27820
-Node: The hline column28376
-Node: The @# column31164
-Node: Aggregation formulas in cols33645
-Node: Correlation of two columns41186
-Node: [Almost) any expression can be specified42925
-Node: Column names44399
-Node: Input table with or without a header44675
-Node: Column names of the input table46068
-Node: Multiple lines header47237
-Node: Custom column names50154
-Node: Formatters52564
-Node: Org Mode compatible formatters52790
-Node: Debugging formatters54991
-Node: Discarding an output column55673
-Node: Sorting58463
-Node: Example with one sorting column58669
-Node: Several sorting columns59950
-Node: hlines in the output table62302
-Node: Output hlines depends on sorting columns62700
-Node: Example with hline 265596
-Node: Cells processing70688
-Node: Where Calc interpretation happens?71183
-Node: Dates76660
-Node: Durations78665
-Node: Empty and malformed input cells80499
-Node: Symbolic computation82169
-Node: Intervals84466
-Node: Error or precision forms85262
-Node: Wide variety of inputs86433
-Node: Standard Org Mode input86980
-Node: Virtual input table from Babel87457
-Node: An Org ID90058
-Node: CSV input90659
-Node: JSON input92180
-Node: Input slicing94581
-Node: The cond filter95304
-Node: Virtual input columns96804
-Node: Post-processing102277
-Node: Spreadsheet formulas102818
-Node: Algorithm post processing104375
-Node: Grand total106338
-Node: Chaining111160
-Node: Pull & Push112849
-Node: Pull mode113083
-Node: Push mode114786
-Node: Pull or push ?116994
-Node: Debugging117728
-Node: Seeing the $ forms118251
-Node: Seeing Calc formulas before evaluation119461
-Node: Seeing Lisp internal form of Calc formulas120595
-Node: Example of debugging vsum(nn^2)121804
-Node: Summary of debugging formatters123233
-Node: Tricks123729
-Node: Sorting (1)124007
-Node: A few lowest or highest values124822
-Node: Span of values126123
-Node: No aggregation126682
-Node: Installation128536
-Node: Authors contributors129178
-Node: Changes130894
-Node: GPL 3 License135531
+Node: New3158
+Node: Examples3733
+Node: A very simple example4003
+Node: Demonstrate sum and average computing6358
+Node: Example without days9696
+Node: Example of counting each combination10564
+Node: Stop reading here! 80/2013244
+Node: Name your input table13724
+Node: Create an aggregation block14377
+Node: Refresh the aggregation15299
+Node: Equivalent in SQL R Datamash el-tblfn Awk C++16939
+Node: SQL equivalent17583
+Node: R equivalent17929
+Node: Datamash equivalent18463
+Node: el-tblfn19037
+Node: Awk equivalent19769
+Node: C++ equivalent20499
+Node: Wizards21623
+Node: Guiding (traditional) wizard21919
+Node: Experimental free form wizard24088
+Node: The cols parameter26134
+Node: Names of input columns26805
+Node: Grouping specifications in cols27880
+Node: The hline column28436
+Node: The @# column31224
+Node: Aggregation formulas in cols33705
+Node: Correlation of two columns41246
+Node: [Almost) any expression can be specified42985
+Node: Column names44459
+Node: Input table with or without a header44735
+Node: Column names of the input table46128
+Node: Multiple lines header47297
+Node: Custom column names50214
+Node: Formatters52624
+Node: Org Mode compatible formatters52850
+Node: Debugging formatters55051
+Node: Discarding an output column55733
+Node: Sorting58523
+Node: Example with one sorting column58729
+Node: Several sorting columns60010
+Node: hlines in the output table62362
+Node: Output hlines depends on sorting columns62760
+Node: Example with hline 265656
+Node: Cells processing70748
+Node: Where Calc interpretation happens?71243
+Node: Dates76720
+Node: Durations78725
+Node: Empty and malformed input cells80559
+Node: Symbolic computation82229
+Node: Intervals84526
+Node: Error or precision forms85322
+Node: Wide variety of inputs86493
+Node: Standard Org Mode input87056
+Node: Virtual input table from Babel87533
+Node: An Org ID90134
+Node: CSV input90735
+Node: JSON input92256
+Node: Input slicing94732
+Node: The cond filter95455
+Node: Virtual input columns with precompute96971
+Node: Post-processing103713
+Node: Spreadsheet formulas104254
+Node: Algorithm post processing105811
+Node: Grand total107774
+Node: Chaining112596
+Node: Pull & Push114285
+Node: Pull mode114519
+Node: Push mode116222
+Node: Pull or push ?118430
+Node: Debugging119164
+Node: Seeing the $ forms119687
+Node: Seeing Calc formulas before evaluation120897
+Node: Seeing Lisp internal form of Calc formulas122031
+Node: Example of debugging vsum(nn^2)123240
+Node: Summary of debugging formatters124669
+Node: Tricks125165
+Node: Sorting (1)125487
+Node: A few lowest or highest values126302
+Node: Span of values127603
+Node: No aggregation128162
+Node: Look at the first rows of a large table130064
+Node: Installation130840
+Node: Authors contributors131482
+Node: Changes133198
+Node: GPL 3 License137835
 
 End Tag Table
 
