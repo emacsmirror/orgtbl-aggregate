@@ -2223,8 +2223,7 @@ Parameters may be:
     containing the column names.
   - =colnames (column1 column2 column3 …)=: the column names are given
     explicitly, in case the CSV file contains only data, no header.
-  In any case, the columns may be references as =$1, $2, $3, …= as
-  usual.
+In any case, the columns may be referenced as =$1, $2, $3, …= as usual.
 
 When data is in an Org Mode file, it is supposed to be within a named
 block of any kind. Example with a "quote" block:
@@ -2350,6 +2349,35 @@ references may be followed by an optional slicing. Examples:
 
 - =mytable[0:5,0:1]=: retain only the first 6 rows and the first 2
   columns.
+
+** Malformed input tables
+:PROPERTIES:
+:CUSTOM_ID: malformed-input-tables
+:END:
+
+Sometimes an input table may be unaligned or malformed, with
+incomplete rows, like those ones:
+
+#+BEGIN_EXAMPLE
+| type     | Fiber | Sugar |      | Carb |
+|----------+-------+-------+------+------|
+| eggplant |   2.5 |   3.2 |  0.8 |  8.6 |
+| tomato   |   0.6 |   2.1 |  0.8 |  3.4 |
+| onion    |   1.3 |   4.4 |  1.3 |  9.0 |
+    | egg      |     0 |  18.3 | 31.9 | 18.3 |
+| rice     |   0.2 |     0 |  1.5 | 16.0 |
+| tofu     |  0.7
+| nut      |   2.6 |   1.3 |  4.9 |  7.2 |
+
+| type     | quty |
+|----------+------|
+| onion    |   70 |
+| tomato   |
+| eggplant |  300 |
+  | tofu     |  100 |
+#+END_EXAMPLE
+
+Missing cells are handled as though they were empty.
 
 ** The :cond filter
 :PROPERTIES:
