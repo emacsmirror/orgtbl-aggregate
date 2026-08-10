@@ -349,21 +349,28 @@ COLNAMES, if not nil, is a list of column names."
 ;; generic enough to be detached from the orgtbl-aggregate package.
 ;; For the time being, they are here.
 
+(defmacro orgtbl-aggregate--with-file (file &rest body)
+  "execute BODY in a buffer visiting FILE.
+If FILE is nil, just stay in the current buffer."
+  (declare (indent defun) (debug t))
+  `(save-current-buffer
+     (if ,file (set-buffer (find-file-noselect ,file)))
+     (save-excursion
+       (goto-char (point-min))
+       (let ((case-fold-search t))
+         ,@body))))
+
 (defun orgtbl-aggregate--list-local-tables (file)
   "Search for available tables in FILE.
 If FILE is nil, use current buffer."
   (interactive)
-  (with-current-buffer
-      (if file (find-file-noselect file) (current-buffer))
-    (save-excursion
-      (goto-char (point-min))
-      (let ((case-fold-search t))
-        (cl-loop
-         while
-         (re-search-forward
-          (rx tblname (group (*? nonl)) blanks eol)
-          nil t)
-         collect (match-string-no-properties 1))))))
+  (orgtbl-aggregate--with-file file
+    (cl-loop
+     while
+     (re-search-forward
+      (rx tblname (group (*? nonl)) blanks eol)
+      nil t)
+     collect (match-string-no-properties 1))))
 
 (defun orgtbl-aggregate--table-from-babel (name-or-id)
   "Retrieve an input table as the result of running a Babel block.
@@ -385,19 +392,15 @@ but this has already been short-circuited."
 FILE is a filename with possible relative or absolute path.
 If FILE is nil, look in the current buffer.
 NAME should match a #+name: tag."
-  (with-current-buffer
-      (if file (find-file-noselect file) (current-buffer))
-    (save-excursion
-      (goto-char (point-min))
-      (let ((case-fold-search t))
-        (if (re-search-forward
-             (rx ;; a single regexp :)
-              tblname (literal name) blanks "\n"
-              blanks "#+begin" (0+ nonl) "\n"
-              (group (*? anything))
-              bol blanks "#+end")
-             nil t)
-            (match-string-no-properties 1))))))
+  (orgtbl-aggregate--with-file file
+    (if (re-search-forward
+         (rx ;; a single regexp :)
+          tblname (literal name) blanks "\n"
+          blanks "#+begin" (0+ nonl) "\n"
+          (group (*? anything))
+          bol blanks "#+end")
+         nil t)
+        (match-string-no-properties 1))))
 
 (defun orgtbl-aggregate--table-from-csv (file name params)
   "Parse a CSV formatted table located in FILE.
@@ -491,18 +494,13 @@ to the column names."
   "Parse an Org table named NAME in a distant Org file named FILE.
 FILE is a filename with possible relative or absolute path.
 If FILE is nil, look in the current buffer."
-  (with-current-buffer
-      (if file (find-file-noselect file) (current-buffer))
-    (save-excursion
-      (goto-char (point-min))
-      (and
-       (let ((case-fold-search t))
-	 (re-search-forward
-	  (rx
-           tblname (literal name) blanks eol
-           (skip-meta-table "#"))
-	  nil t))
-       (orgtbl-aggregate--table-to-lisp)))))
+  (orgtbl-aggregate--with-file file
+    (if (re-search-forward
+         (rx
+          tblname (literal name) blanks eol
+          (skip-meta-table "#"))
+         nil t)
+        (orgtbl-aggregate--table-to-lisp))))
 
 (defun orgtbl-aggregate--table-from-id (id)
   "Parse a table following a header in a distant Org file.
@@ -1661,12 +1659,12 @@ which do not pass the filter found in PARAMS entry :cond."
       ;; beware! it assumes that the actual list in orgtbl-aggregate--lists
       ;; is pointed to by the cdr of the orgtbl-aggregate--list
       (if (cl-loop for col in aggcols
-		   thereis (orgtbl-aggregate--outcol-invisible col))
+		   thereis (equal (orgtbl-aggregate--outcol-invisible col) ""))
 	  (cl-loop for row in result
 		   if (consp row)
 		   do (cl-loop for col in aggcols
 			       with cel = row
-			       if (orgtbl-aggregate--outcol-invisible col)
+			       if (equal (orgtbl-aggregate--outcol-invisible col) "")
 			       do    (setcdr cel (cddr cel))
 			       else do (orgtbl-aggregate--pop-simple cel))))
 
