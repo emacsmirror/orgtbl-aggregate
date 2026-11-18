@@ -3125,46 +3125,42 @@ The result of an aggregation may become the source of further
 processing.  To do that, just add a ‘#+NAME:’ or ‘#+TBLNAME:’ line just
 above the aggregated table.  Here is an example of a double aggregation:
 
-     #+NAME: squantity
      #+BEGIN: aggregate :table original :cols "Day vsum(Quantity)"
-     | Day       | SQuantity |
-     |-----------+-----------|
-     | Monday    |        14 |
-     | Tuesday   |        45 |
-     | Wednesday |        54 |
-     | Thursday  |        83 |
+     #+NAME: squantity ◀──────────────╮
+     | Day       | SQuantity |        │
+     |-----------+-----------|        ╰─────╴name within the
+     | Monday    |        14 |               aggregate block.
+     | Tuesday   |        45 |               it will survive
+     | Wednesday |        54 |               updates of the
+     | Thursday  |        83 |               aggregation.
      | Friday    |        22 |
      #+TBLFM: @1$2=SQuantity
-     #+END:
-
+     #+END:                           ╭─────╴the aggregate table
+                                      │      is used by another
+     Aggregation upon aggregation:    │      aggregation
+                                      ▼
      #+BEGIN: aggregate :table "squantity" :cols "vsum(SQuantity)"
      | vsum(SQuantity) |
      |-----------------|
      |             218 |
-     #+END:
+     #+END:                           ╭──────╴the aggregation is
+                                      │       used by an unrelated
+     A Lisp block which               │       Babel block
+     just echoes its input:           │
+                                      ▼
+     #+begin_src elisp :var mytable=squantity
+     mytable
+     #+end_src
 
-   Note the spreadsheet cell formula ‘@1$2=SQuantity’, which changes the
-column heading from it default ‘vsum(Quantity)’ to ‘SQuantity’.  This
-new heading will survive any refresh.
+     #+RESULTS:
+     | Monday    | 14 |
+     | Tuesday   | 45 |
+     | Wednesday | 54 |
+     | Thursday  | 83 |
+     | Friday    | 22 |
 
-   Sometimes the name of the aggregated table is not found by some babel
-block referencing it (Gnuplot blocks are among them).  To fix that, just
-exchange the ‘#+NAME:’ and ‘#+BEGIN:’ lines:
-
-     #+BEGIN: aggregate :table original :cols "Day vsum(Quantity)"
-     #+NAME: squantity
-     | Day       | SQuantity |
-     |-----------+-----------|
-     | Monday    |        14 |
-     | Tuesday   |        45 |
-     | Wednesday |        54 |
-     | Thursday  |        83 |
-     | Friday    |        22 |
-     #+TBLFM: @1$2=SQuantity
-     #+END:
-
-   The ‘#.NAME:’ line will survive when recomputing the aggregation (as
-‘#.TBLFM:’ line survives)
+   The ‘#.NAME:’ line will survive when recomputing the aggregation (the
+‘#.TBLFM:’ line also survives)
 
 
 File: orgtbl-aggregate.info,  Node: Pull & Push,  Next: Debugging,  Prev: Post-processing,  Up: Top
@@ -3863,26 +3859,26 @@ Node: Spreadsheet formulas114862
 Node: Algorithm post processing116419
 Node: Grand total118382
 Node: Chaining123222
-Node: Pull & Push124911
-Node: Pull mode125145
-Node: Push mode126848
-Node: Pull or push ?129056
-Node: Debugging129790
-Node: Seeing the $ forms130313
-Node: Seeing Calc formulas before evaluation131523
-Node: Seeing Lisp internal form of Calc formulas132657
-Node: Example of debugging vsum(nn^2)133548
-Node: Summary of debugging formatters134977
-Node: Tricks135473
-Node: Sorting (1)135795
-Node: A few lowest or highest values136610
-Node: Span of values137911
-Node: No aggregation138470
-Node: Look at the first rows of a large table140372
-Node: Installation141148
-Node: Authors contributors141790
-Node: Changes143506
-Node: GPL 3 License148415
+Node: Pull & Push125121
+Node: Pull mode125355
+Node: Push mode127058
+Node: Pull or push ?129266
+Node: Debugging130000
+Node: Seeing the $ forms130523
+Node: Seeing Calc formulas before evaluation131733
+Node: Seeing Lisp internal form of Calc formulas132867
+Node: Example of debugging vsum(nn^2)133758
+Node: Summary of debugging formatters135187
+Node: Tricks135683
+Node: Sorting (1)136005
+Node: A few lowest or highest values136820
+Node: Span of values138121
+Node: No aggregation138680
+Node: Look at the first rows of a large table140582
+Node: Installation141358
+Node: Authors contributors142000
+Node: Changes143716
+Node: GPL 3 License148625
 
 End Tag Table
 

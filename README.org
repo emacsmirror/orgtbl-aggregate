@@ -3071,49 +3071,43 @@ just above the aggregated table.  Here is an example of a double
 aggregation:
 
 #+begin_example
-#+NAME: squantity
-#+BEGIN: aggregate :table original :cols "Day vsum(Quantity)"
-| Day       | SQuantity |
-|-----------+-----------|
-| Monday    |        14 |
-| Tuesday   |        45 |
-| Wednesday |        54 |
-| Thursday  |        83 |
-| Friday    |        22 |
-#+TBLFM: @1$2=SQuantity
-#+END:
+ #+BEGIN: aggregate :table original :cols "Day vsum(Quantity)"
+ #+NAME: squantity ◀──────────────╮
+ | Day       | SQuantity |        │
+ |-----------+-----------|        ╰─────╴name within the
+ | Monday    |        14 |               aggregate block.
+ | Tuesday   |        45 |               it will survive
+ | Wednesday |        54 |               updates of the
+ | Thursday  |        83 |               aggregation.
+ | Friday    |        22 |
+ #+TBLFM: @1$2=SQuantity
+ #+END:                           ╭─────╴the aggregate table
+                                  │      is used by another
+ Aggregation upon aggregation:    │      aggregation
+                                  ▼
+ #+BEGIN: aggregate :table "squantity" :cols "vsum(SQuantity)"
+ | vsum(SQuantity) |
+ |-----------------|
+ |             218 |
+ #+END:                           ╭──────╴the aggregation is
+                                  │       used by an unrelated
+ A Lisp block which               │       Babel block
+ just echoes its input:           │
+                                  ▼
+ #+begin_src elisp :var mytable=squantity
+ mytable
+ #+end_src
 
-#+BEGIN: aggregate :table "squantity" :cols "vsum(SQuantity)"
-| vsum(SQuantity) |
-|-----------------|
-|             218 |
-#+END:
+ #+RESULTS:
+ | Monday    | 14 |
+ | Tuesday   | 45 |
+ | Wednesday | 54 |
+ | Thursday  | 83 |
+ | Friday    | 22 |
 #+end_example
 
-Note the spreadsheet cell formula =@1$2=SQuantity=, which changes the
-column heading from it default =vsum(Quantity)= to =SQuantity=.  This
-new heading will survive any refresh.
-
-Sometimes the name of the aggregated table is not found by some babel
-block referencing it (Gnuplot blocks are among them). To fix that,
-just exchange the =#+NAME:= and =#+BEGIN:= lines:
-
-#+begin_example
-#+BEGIN: aggregate :table original :cols "Day vsum(Quantity)"
-#+NAME: squantity
-| Day       | SQuantity |
-|-----------+-----------|
-| Monday    |        14 |
-| Tuesday   |        45 |
-| Wednesday |        54 |
-| Thursday  |        83 |
-| Friday    |        22 |
-#+TBLFM: @1$2=SQuantity
-#+END:
-#+end_example
-
-The =#.NAME:= line will survive when recomputing the aggregation (as
-=#.TBLFM:= line survives)
+The =#.NAME:= line will survive when recomputing the aggregation (the
+=#.TBLFM:= line also survives)
 
 * Pull & Push
 :PROPERTIES:
